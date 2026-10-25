@@ -1,0 +1,90 @@
+{
+  "specVersion": 1,
+  "gameId": "0x94c5d3cf09d29624db0f922dc713b853732b81b8f7648fecc41f4fca13aa2712",
+  "roleLeaves": [
+    {
+      "player": "0x0000000000000000000000000000000000001001",
+      "role": "werewolf",
+      "salt": "0x31f82b7bccd50af613e6284f69bd3eed1a157b8839ffeaadb9615e7af3680441",
+      "leaf": "0xe727abc416cc229bfba100a08b5fd7c0aaa5c3d4ea56810487430c2fe05eb66f",
+      "proof": [
+        "0xa2158f9c3207eaaa4a1d0db92f0dab3cf85a09b8779c213f26001881ae5c7867",
+        "0x692cac52d586ce19aec9358ac71cdefb15e6b8ef3973b94aca92751046beece6",
+        "0xb67e0f0774c00962d7e5245b73a9bc5921dac0c8a2eb50da09412c6646769713"
+      ]
+    },
+    {
+      "player": "0x0000000000000000000000000000000000001002",
+      "role": "seer",
+      "salt": "0xfc66102a64d7bdb4e725355349898642877099a68256943de577c1a011c76ee2",
+      "leaf": "0xa2158f9c3207eaaa4a1d0db92f0dab3cf85a09b8779c213f26001881ae5c7867",
+      "proof": [
+        "0xe727abc416cc229bfba100a08b5fd7c0aaa5c3d4ea56810487430c2fe05eb66f",
+        "0x692cac52d586ce19aec9358ac71cdefb15e6b8ef3973b94aca92751046beece6",
+        "0xb67e0f0774c00962d7e5245b73a9bc5921dac0c8a2eb50da09412c6646769713"
+      ]
+    },
+    {
+      "player": "0x0000000000000000000000000000000000001003",
+      "role": "doctor",
+      "salt": "0x9585e839c01ff5e55d0d236fa9ced23697030a7b9cf05e7c61f2607d38ec7dc6",
+      "leaf": "0x776c95b55cd7a230d1c3cbd7ea6e339aefe1b246d1c4baf676bf3e955dd46187",
+      "proof": [
+        "0x27cd98bb0501837a874487a7ae730c9c77b42c7cc0ede29e01ae2d76e20dcd6a",
+        "0xca2c7d13a84f6590768259b9ae72f52236f1211876caaa873bcffd584fcc5aa0",
+        "0xb67e0f0774c00962d7e5245b73a9bc5921dac0c8a2eb50da09412c6646769713"
+      ]
+    },
+    {
+      "player": "0x0000000000000000000000000000000000001004",
+      "role": "villager",
+      "salt": "0xc3373c0c18337ebfe759be1e2636f453af5356e30c13509d88476bf7fc21399f",
+      "leaf": "0x27cd98bb0501837a874487a7ae730c9c77b42c7cc0ede29e01ae2d76e20dcd6a",
+      "proof": [
+        "0x776c95b55cd7a230d1c3cbd7ea6e339aefe1b246d1c4baf676bf3e955dd46187",
+        "0xca2c7d13a84f6590768259b9ae72f52236f1211876caaa873bcffd584fcc5aa0",
+        "0xb67e0f0774c00962d7e5245b73a9bc5921dac0c8a2eb50da09412c6646769713"
+      ]
+    },
+    {
+      "player": "0x0000000000000000000000000000000000001005",
+      "role": "villager",
+      "salt": "0x5f68b43ac2875b6d2bb38dccb943b7dccd34ca26372816086cea643b05036af0",
+      "leaf": "0xb67e0f0774c00962d7e5245b73a9bc5921dac0c8a2eb50da09412c6646769713",
+      "proof": [
+        "0x72fda6d40942be3d9f927dd3bd755fffa42e7c90c98ddd92cc36af7afbb5888c"
+      ]
+    }
+  ],
+  "rolesRoot": "0xda02bece30922bfc1a454320c9da42578fe0cde91115776bda70da2d87588ff8",
+  "action": {
+    "round": 1,
+    "player": "0x0000000000000000000000000000000000001001",
+    "action": "kill",
+    "target": "0x0000000000000000000000000000000000001004",
+    "nonce": "0xa28654e9f08f2bfe565cdc16a33ecfab1547999f1b4d2faffb27ee896d19d208",
+    "hash": "0xca371c050e822bfe00231edcd8bfbafe54c29633c248e9e1055348cb05f80aa9"
+  },
+  "config": {
+    "value": {
+      "mode": "casual",
+      "theme": "classic",
+      "players": 5,
+      "timers": {
+        "lobby": 120,
+        "night": 60,
+        "discussion": 90,
+        "vote": 45
+      }
+    },
+    "hash": "0x1a2621c1c2a0839338fe12598d0661a17ee57fc20d63b09bcd97a3d0728c6547"
+  },
+  "result": {
+    "value": {
+      "round": 1,
+      "eliminated": "0x0000000000000000000000000000000000001004",
+      "revealedRole": "villager"
+    },
+    "hash": "0xb2d1a4908a0f5c7a5c16cc02892a9d276f1d6d170ee1b7463657ec97fa26922b"
+  }
+}
