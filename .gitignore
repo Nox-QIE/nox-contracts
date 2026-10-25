@@ -1,0 +1,16 @@
+# foundry
+cache/
+out/
+broadcast/*/31337/
+
+# os / editor
+.DS_Store
+.idea/
+.vscode/
+
+# env & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
