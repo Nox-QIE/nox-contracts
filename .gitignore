@@ -14,3 +14,6 @@ broadcast/*/31337/
 !.env.example
 *.pem
 *.key
+broadcast/**/dry-run/
+broadcast/**/run-[0-9]*.json
+broadcast/**/*.lock
