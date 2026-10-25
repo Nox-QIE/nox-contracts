@@ -233,6 +233,103 @@ contract NoxGameTest is Test {
         credits.mint(address(this), 1, bytes32(0));
     }
 
+    // ------------------------------------------------------------ gas, worst case
+
+    /// @dev 12 players (3 wolves, seer, doctor), 5 rounds of night actions from every special role.
+    function test_gas_finalize12Players() public {
+        bytes32 id = keccak256("gas-12");
+        address[] memory ps = new address[](12);
+        uint8[] memory rs = new uint8[](12);
+        bytes32[] memory ss = new bytes32[](12);
+        bytes32[] memory leaves = new bytes32[](12);
+        for (uint256 i; i < 12; ++i) {
+            ps[i] = address(uint160(0xB000 + i));
+            rs[i] = i < 3 ? 2 : i == 3 ? 3 : i == 4 ? 4 : 1;
+            ss[i] = keccak256(abi.encode("salt", i));
+            leaves[i] = game.roleLeaf(id, ps[i], rs[i], ss[i]);
+        }
+        bytes32 root = _root(leaves);
+
+        vm.prank(operator);
+        game.createGame(id, bytes32(0));
+        for (uint256 i; i < 12; ++i) {
+            vm.prank(ps[i]);
+            game.joinGame(id);
+        }
+        vm.prank(operator);
+        game.commitRoles(id, root);
+
+        NoxGame.NightReveal[] memory nights = _playFiveNights(id, ps);
+
+        NoxGame.RoleReveal[] memory reveals = new NoxGame.RoleReveal[](12);
+        for (uint256 i; i < 12; ++i) {
+            reveals[i] = NoxGame.RoleReveal(ps[i], rs[i], ss[i], _proof(leaves, i));
+        }
+        bytes memory data = abi.encodeCall(NoxGame.revealAndFinalize, (id, reveals, nights, bytes32(0), 1));
+        vm.prank(operator);
+        uint256 g = gasleft();
+        game.revealAndFinalize(id, reveals, nights, bytes32(0), 1);
+        uint256 used = g - gasleft();
+        emit log_named_uint("revealAndFinalize gas (12 players, 25 night actions)", used);
+        emit log_named_uint("calldata bytes", data.length);
+        assertLt(used, 3_000_000); // far below a block's gas limit
+    }
+
+    /// @dev Wolves (0-2) kill, seer (3) inspects, doctor (4) protects, every round; operator records each round.
+    function _playFiveNights(bytes32 id, address[] memory ps) internal returns (NoxGame.NightReveal[] memory nights) {
+        nights = new NoxGame.NightReveal[](25);
+        uint256 k;
+        for (uint16 round = 1; round <= 5; ++round) {
+            for (uint256 i; i < 5; ++i) {
+                nights[k] = NoxGame.NightReveal(
+                    round, ps[i], i < 3 ? 1 : i == 3 ? 2 : 3, ps[11], keccak256(abi.encode(round, i))
+                );
+                NoxGame.NightReveal memory n = nights[k++];
+                bytes32 h = game.actionHash(id, n.round, n.player, n.action, n.target, n.nonce);
+                vm.prank(n.player);
+                game.commitNightAction(id, round, h);
+            }
+            vm.prank(operator);
+            game.recordRound(id, round, keccak256(abi.encode(round)));
+        }
+    }
+
+    /// @dev Sorted-pair Merkle tree, odd node carried up (same as @nox/shared crypto-spec).
+    function _layer(bytes32[] memory nodes) internal pure returns (bytes32[] memory next) {
+        next = new bytes32[]((nodes.length + 1) / 2);
+        for (uint256 i; i < nodes.length; i += 2) {
+            if (i + 1 == nodes.length) {
+                next[i / 2] = nodes[i];
+            } else {
+                next[i / 2] = nodes[i] < nodes[i + 1]
+                    ? keccak256(abi.encode(nodes[i], nodes[i + 1]))
+                    : keccak256(abi.encode(nodes[i + 1], nodes[i]));
+            }
+        }
+    }
+
+    function _root(bytes32[] memory leaves) internal pure returns (bytes32) {
+        bytes32[] memory nodes = leaves;
+        while (nodes.length > 1) nodes = _layer(nodes);
+        return nodes[0];
+    }
+
+    function _proof(bytes32[] memory leaves, uint256 index) internal pure returns (bytes32[] memory proof) {
+        bytes32[] memory tmp = new bytes32[](8);
+        uint256 n;
+        bytes32[] memory nodes = leaves;
+        while (nodes.length > 1) {
+            uint256 sib = index % 2 == 0 ? index + 1 : index - 1;
+            if (sib < nodes.length) tmp[n++] = nodes[sib];
+            nodes = _layer(nodes);
+            index /= 2;
+        }
+        proof = new bytes32[](n);
+        for (uint256 i; i < n; ++i) {
+            proof[i] = tmp[i];
+        }
+    }
+
     // ------------------------------------------------------------ helpers
 
     function _startGame() internal {
