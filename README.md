@@ -6,8 +6,8 @@ Smart contracts for [Nox](https://github.com/Nox-QIE): provably fair Werewolf on
 |---|---|
 | `NoxGame` | Commit-reveal record of a game: create, join (player wallet), commit role Merkle root, commit night actions and cast votes (player wallets), record rounds, then reveal and verify every role and night action at finalize |
 | `NoxCredits` | Non-transferable ERC-20 status points (0 decimals), minted by `NoxGame` at finalize |
-
-Coming next: `NoxPayments` (passes, Game Night, agent revenue split), `NoxAgentRegistry` (Agent Marketplace).
+| `NoxAgentRegistry` | Third-party AI Game Masters: owner, mode, status, persona/endpoint hash, revenue share (default 30%) |
+| `NoxPayments` | Host/Season Pass (QIE or QUSDC; rupiah recorded), Game Night with instant agent share, monthly agent pool, pull withdrawals. See [ADR-003](docs/adr/ADR-003-payments-and-agent-revenue.md) |
 
 Hashing follows `@nox/shared/crypto-spec` v1; see [ADR-001](docs/adr/ADR-001-commit-reveal-hashing.md). `test/vectors/crypto-spec-v1.json` is copied from [nox-shared](https://github.com/Nox-QIE/nox-shared) and the tests prove both sides hash identically.
 
@@ -25,7 +25,7 @@ Networks: testnet 1983 via `https://rpc2testnet.qie.digital/` (`rpc1`/`rpc3` tes
 
 ## Deploy
 
-`script/Deploy.s.sol` deploys `NoxCredits` + `NoxGame`, grants the game the minter role, and hands credit admin to `NOX_ADMIN` (defaults to the deployer). `NOX_OPERATOR` (defaults to `NOX_ADMIN`) is the backend's operator wallet.
+`script/Deploy.s.sol` deploys `NoxCredits` + `NoxGame` + `NoxAgentRegistry` + `NoxPayments`, grants the game the minter role, and hands credit admin to `NOX_ADMIN` (defaults to the deployer). `NOX_OPERATOR` (defaults to `NOX_ADMIN`) is the backend's operator wallet.
 
 ```bash
 cast wallet import nox-deployer --interactive   # once; stores the key encrypted, not in shell history
