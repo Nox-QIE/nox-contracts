@@ -32,4 +32,14 @@ cast wallet import nox-deployer --interactive   # once; stores the key encrypted
 NOX_ADMIN=0x... NOX_OPERATOR=0x... forge script script/Deploy.s.sol --rpc-url qie_testnet --account nox-deployer --broadcast
 ```
 
-Then set `NOX_GAME_ADDRESS` in nox-backend. The testnet faucet is at https://www.qie.digital/faucet; mainnet needs real QIE (no faucet).
+Then set `NOX_GAME_ADDRESS` in nox-backend.
+
+Add `--slow` when broadcasting to QIE: its Cosmos EVM rejects a transaction whose nonce arrives ahead of the previous one (`invalid nonce; got 4, expected 3: invalid sequence`). Forge retries without it, but `--slow` sends one transaction at a time.
+
+## Deployments
+
+| Network | Contracts | Block | Commit |
+|---|---|---|---|
+| QIE Testnet (1983) | [`deployments/qie-testnet.json`](deployments/qie-testnet.json): NoxCredits `0xbDe39D4d…f1fc`, NoxGame `0xa845444E…626e`, NoxAgentRegistry `0x27Add0D3…357e`, NoxPayments `0x8DcD6Ff6…B505` | 9,366,050 | `5ae1fbd` |
+
+Source verification on the testnet Blockscout (v7.0.2) failed for solc 0.8.28 through both the etherscan-compatible and v2 APIs; contracts verified there so far use 0.8.25 or 0.8.30. Still to resolve. The testnet faucet is at https://www.qie.digital/faucet; mainnet needs real QIE (no faucet).

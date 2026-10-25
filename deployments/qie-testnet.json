@@ -1,0 +1,19 @@
+{
+  "network": "QIE Testnet",
+  "chainId": 1983,
+  "rpc": ["https://rpc2testnet.qie.digital", "https://rpc4testnet.qie.digital", "https://rpc5testnet.qie.digital"],
+  "explorer": "https://testnet.qie.digital",
+  "deployedAt": "2026-10-25",
+  "block": 9366050,
+  "commit": "5ae1fbd",
+  "deployer": "0x552000070aB67Ae1ad012a5e72B46f8b44Cc1764",
+  "admin": "0x552000070aB67Ae1ad012a5e72B46f8b44Cc1764",
+  "operator": "0x552000070aB67Ae1ad012a5e72B46f8b44Cc1764",
+  "contracts": {
+    "NoxCredits": "0xbDe39D4d2A66b56b4C6457c9B247723bb3fdf1fc",
+    "NoxGame": "0xa845444E1c15E589ffC5f5e8617217617e28626e",
+    "NoxAgentRegistry": "0x27Add0D333c09EF12c9d07F19718250ae112357e",
+    "NoxPayments": "0x8DcD6Ff66d6033933B8E76C8d4b3d06a10e9B505"
+  },
+  "sourceVerified": false
+}
