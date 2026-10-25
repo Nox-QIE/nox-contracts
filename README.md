@@ -22,3 +22,14 @@ forge test --gas-report
 ```
 
 Networks: testnet 1983 via `https://rpc2testnet.qie.digital/` (`rpc1`/`rpc3` testnet are down), mainnet 1990 via `https://rpc1mainnet.qie.digital`.
+
+## Deploy
+
+`script/Deploy.s.sol` deploys `NoxCredits` + `NoxGame`, grants the game the minter role, and hands credit admin to `NOX_ADMIN` (defaults to the deployer). `NOX_OPERATOR` (defaults to `NOX_ADMIN`) is the backend's operator wallet.
+
+```bash
+cast wallet import nox-deployer --interactive   # once; stores the key encrypted, not in shell history
+NOX_ADMIN=0x... NOX_OPERATOR=0x... forge script script/Deploy.s.sol --rpc-url qie_testnet --account nox-deployer --broadcast
+```
+
+Then set `NOX_GAME_ADDRESS` in nox-backend. The testnet faucet is at https://www.qie.digital/faucet; mainnet needs real QIE (no faucet).
