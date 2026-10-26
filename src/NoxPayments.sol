@@ -37,6 +37,8 @@ contract NoxPayments is AccessControl, ReentrancyGuard {
     mapping(address owner => mapping(address token => uint256)) public ownerBalance;
     /// @notice Game Night bookings already paid, so a booking is never charged twice.
     mapping(bytes32 bookingId => bool) public bookingPaid;
+    /// @notice Rupiah receipts already recorded, so one payment never grants a pass or a night twice.
+    mapping(bytes32 receiptHash => bool) public receiptUsed;
     mapping(uint32 period => mapping(address token => bool)) public poolAllocated;
 
     event PassConfigured(uint8 indexed passType, address indexed token, uint256 price, uint64 period);
@@ -67,6 +69,7 @@ contract NoxPayments is AccessControl, ReentrancyGuard {
     error TokenNotAllowed(address token);
     error WrongAmount(uint256 expected, uint256 sent);
     error AlreadyPaid();
+    error ReceiptUsed();
     error AlreadyAllocated();
     error AgentNotActive(uint256 agentId);
     error LengthMismatch();
@@ -144,6 +147,7 @@ contract NoxPayments is AccessControl, ReentrancyGuard {
         onlyRole(OPERATOR_ROLE)
     {
         if (periodOf[passType] == 0 || periods == 0) revert NotForSale();
+        _useReceipt(receiptHash);
         uint64 expiresAt = _extend(buyer, passType, periods);
         emit FiatPassRecorded(buyer, passType, periods, receiptHash, expiresAt);
     }
@@ -182,8 +186,16 @@ contract NoxPayments is AccessControl, ReentrancyGuard {
         onlyRole(OPERATOR_ROLE)
     {
         if (bookingPaid[bookingId]) revert AlreadyPaid();
+        _useReceipt(receiptHash);
         bookingPaid[bookingId] = true;
         emit FiatGameNightRecorded(bookingId, agentId, receiptHash);
+    }
+
+    /// @dev A receipt is the proof of one rupiah payment: it must be set and can be used once.
+    function _useReceipt(bytes32 receiptHash) internal {
+        if (receiptHash == bytes32(0)) revert InvalidInput();
+        if (receiptUsed[receiptHash]) revert ReceiptUsed();
+        receiptUsed[receiptHash] = true;
     }
 
     // ------------------------------------------------------------ agent pool
