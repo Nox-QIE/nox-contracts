@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, Vm} from "forge-std/Test.sol";
 import {stdJson} from "forge-std/StdJson.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
@@ -96,9 +96,11 @@ contract NoxGameTest is Test {
         (NoxGame.Status status,,,,,,,,) = game.games(gameId);
         assertEq(uint8(status), uint8(NoxGame.Status.Finalized));
         assertEq(credits.balanceOf(players[0]), 10); // werewolf lost: participation only
-        for (uint256 i = 1; i < 5; ++i) {
-            assertEq(credits.balanceOf(players[i]), 30);
-        }
+        // Village: 10 participation + 20 win, +2 for voting the werewolf. players[3] died at night.
+        assertEq(credits.balanceOf(players[1]), 32);
+        assertEq(credits.balanceOf(players[2]), 32);
+        assertEq(credits.balanceOf(players[3]), 30);
+        assertEq(credits.balanceOf(players[4]), 32);
         assertEq(game.revealedRoleOf(gameId, players[1]), 3); // seer
     }
 
@@ -318,6 +320,135 @@ contract NoxGameTest is Test {
         game.setRevealTimeout(1 hours);
         vm.stopPrank();
         assertEq(game.revealTimeout(), 1 hours);
+    }
+
+    // ------------------------------------------------------------ reward formula
+
+    /// @dev 5 players at 0xC000..: wolf 0, seer 1, doctor 2, villagers 3-4. Night 1: the wolf picks
+    ///      player 3, the seer inspects the wolf, the doctor protects player 3. Day 1: 1-4 vote the wolf.
+    function _rewardGame(bytes32 id) internal returns (address[] memory ps) {
+        ps = new address[](5);
+        uint8[5] memory rs = [2, 3, 4, 1, 1];
+        bytes32[] memory leaves = new bytes32[](5);
+        for (uint256 i; i < 5; ++i) {
+            ps[i] = address(uint160(0xC000 + i));
+            leaves[i] = game.roleLeaf(id, ps[i], rs[i], bytes32(i + 1));
+        }
+        vm.prank(operator);
+        game.createGame(id, bytes32(0));
+        for (uint256 i; i < 5; ++i) {
+            vm.prank(ps[i]);
+            game.joinGame(id);
+        }
+        vm.prank(operator);
+        game.commitRoles(id, _root(leaves));
+
+        NoxGame.NightReveal[] memory nights = new NoxGame.NightReveal[](3);
+        nights[0] = NoxGame.NightReveal(1, ps[0], 1, ps[3], bytes32("k"));
+        nights[1] = NoxGame.NightReveal(1, ps[1], 2, ps[0], bytes32("i"));
+        nights[2] = NoxGame.NightReveal(1, ps[2], 3, ps[3], bytes32("p"));
+        for (uint256 i; i < 3; ++i) {
+            NoxGame.NightReveal memory n = nights[i];
+            bytes32 h = game.actionHash(id, 1, n.player, n.action, n.target, n.nonce); // before the prank
+            vm.prank(n.player);
+            game.commitNightAction(id, 1, h);
+        }
+        for (uint256 i = 1; i < 5; ++i) {
+            vm.prank(ps[i]);
+            game.castVote(id, 1, ps[0]);
+        }
+        vm.prank(operator);
+        game.recordRound(id, 1, bytes32(0));
+
+        NoxGame.RoleReveal[] memory reveals = new NoxGame.RoleReveal[](5);
+        for (uint256 i; i < 5; ++i) {
+            reveals[i] = NoxGame.RoleReveal(ps[i], rs[i], bytes32(i + 1), _proof(leaves, i));
+        }
+        vm.prank(operator);
+        game.revealAndFinalize(id, reveals, nights, bytes32(0), 1);
+    }
+
+    /// @dev The RewardGranted breakdown (version, base, role, vote, streak) emitted for `player`.
+    function _grantOf(address player) internal returns (uint16[5] memory b) {
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        for (uint256 i; i < logs.length; ++i) {
+            if (
+                logs[i].topics[0] == NoxGame.RewardGranted.selector
+                    && logs[i].topics[2] == bytes32(uint256(uint160(player)))
+            ) {
+                (b[0], b[1], b[2], b[3], b[4]) = abi.decode(logs[i].data, (uint16, uint16, uint16, uint16, uint16));
+                return b;
+            }
+        }
+        revert("no RewardGranted");
+    }
+
+    function test_rewards_roleAndVoteBonuses() public {
+        bytes32 id = keccak256("rewards-1");
+        vm.recordLogs();
+        address[] memory ps = _rewardGame(id);
+        uint16[5] memory seer = _grantOf(ps[1]);
+        assertEq(abi.encode(seer), abi.encode([uint16(1), 30, 5, 2, 0])); // version, base, found wolf, vote, streak
+        assertEq(credits.balanceOf(ps[0]), 10); // wolf lost; no vote bonus for wolves
+        assertEq(credits.balanceOf(ps[1]), 37); // seer: 30 + found the wolf 5 + voted the wolf 2
+        assertEq(credits.balanceOf(ps[2]), 37); // doctor: 30 + protected the wolf's pick 5 + vote 2
+        assertEq(credits.balanceOf(ps[3]), 32);
+        assertEq(credits.balanceOf(ps[4]), 32);
+    }
+
+    function test_rewards_streakAcrossDays() public {
+        vm.warp(100 days + 1 hours);
+        address[] memory ps = _rewardGame(keccak256("day-0"));
+        assertEq(credits.balanceOf(ps[4]), 32); // first day: no streak yet
+
+        _rewardGame(keccak256("day-0-again")); // same day: no extra step
+        assertEq(credits.balanceOf(ps[4]), 64);
+
+        vm.warp(101 days + 23 hours);
+        _rewardGame(keccak256("day-1"));
+        assertEq(credits.balanceOf(ps[4]), 64 + 32 + 2);
+        (uint32 lastDay, uint16 streakDays) = game.streakOf(ps[4]);
+        assertEq(lastDay, 101);
+        assertEq(streakDays, 2);
+
+        // Seven more consecutive days: steps stop at the cap (5 steps x 2 = 10).
+        uint256 before = credits.balanceOf(ps[4]);
+        for (uint256 d = 2; d <= 8; ++d) {
+            vm.warp(100 days + d * 1 days);
+            _rewardGame(keccak256(abi.encode("day", d)));
+        }
+        assertEq(credits.balanceOf(ps[4]) - before, 7 * 32 + (4 + 6 + 8 + 10 + 10 + 10 + 10));
+
+        // A missed day starts over.
+        vm.warp(110 days);
+        before = credits.balanceOf(ps[4]);
+        _rewardGame(keccak256("after-gap"));
+        assertEq(credits.balanceOf(ps[4]) - before, 32);
+    }
+
+    function test_rewards_versionedAndBounded() public {
+        NoxGame.Rewards memory r = NoxGame.Rewards(5, 10, 3, 3, 1, 1, 3, 99);
+        vm.prank(operator);
+        vm.expectRevert();
+        game.setRewards(r);
+
+        vm.startPrank(admin);
+        vm.expectEmit(true, false, false, true);
+        emit NoxGame.RewardsConfigured(2, NoxGame.Rewards(5, 10, 3, 3, 1, 1, 3, 2));
+        game.setRewards(r); // the caller's version (99) is ignored
+        r.streakCap = 31;
+        vm.expectRevert(NoxGame.InvalidCode.selector);
+        game.setRewards(r);
+        r.streakCap = 3;
+        r.win = 1001;
+        vm.expectRevert(NoxGame.InvalidCode.selector);
+        game.setRewards(r);
+        vm.stopPrank();
+
+        vm.recordLogs();
+        address[] memory ps = _rewardGame(keccak256("rewards-v2"));
+        assertEq(abi.encode(_grantOf(ps[1])), abi.encode([uint16(2), 15, 3, 1, 0]));
+        assertEq(credits.balanceOf(ps[1]), 19);
     }
 
     // ------------------------------------------------------------ credits
