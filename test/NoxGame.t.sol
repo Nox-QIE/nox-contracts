@@ -93,7 +93,7 @@ contract NoxGameTest is Test {
         vm.prank(operator);
         game.revealAndFinalize(gameId, reveals, nights, keccak256("final"), village);
 
-        (NoxGame.Status status,,,,,,,) = game.games(gameId);
+        (NoxGame.Status status,,,,,,,,) = game.games(gameId);
         assertEq(uint8(status), uint8(NoxGame.Status.Finalized));
         assertEq(credits.balanceOf(players[0]), 10); // werewolf lost: participation only
         for (uint256 i = 1; i < 5; ++i) {
@@ -210,6 +210,114 @@ contract NoxGameTest is Test {
         vm.prank(players[1]);
         vm.expectRevert();
         game.castVote(gameId, 1, players[0]);
+    }
+
+    // ------------------------------------------------------------ disputes
+
+    function _status() internal view returns (NoxGame.Status status) {
+        (status,,,,,,,,) = game.games(gameId);
+    }
+
+    function test_dispute_operatorReportsItsOwnBadReveal() public {
+        _startGame();
+        uint8 mismatch = game.DISPUTE_REVEAL_MISMATCH();
+        vm.expectEmit(true, false, false, true);
+        emit NoxGame.GameDisputed(gameId, mismatch, "BadReveal");
+        vm.prank(operator);
+        game.reportDispute(gameId, "BadReveal");
+        assertEq(uint8(_status()), uint8(NoxGame.Status.Disputed));
+
+        // Terminal: no reveal, no cancel, no more actions, and nobody earned credits.
+        NoxGame.RoleReveal[] memory reveals = _reveals();
+        vm.startPrank(operator);
+        vm.expectRevert(
+            abi.encodeWithSelector(NoxGame.WrongStatus.selector, NoxGame.Status.Running, NoxGame.Status.Disputed)
+        );
+        game.revealAndFinalize(gameId, reveals, new NoxGame.NightReveal[](0), bytes32(0), 1);
+        vm.expectRevert();
+        game.cancelGame(gameId, "hide it");
+        vm.stopPrank();
+        vm.prank(players[1]);
+        vm.expectRevert();
+        game.castVote(gameId, 1, players[0]);
+        for (uint256 i; i < 5; ++i) {
+            assertEq(credits.balanceOf(players[i]), 0);
+        }
+    }
+
+    function test_dispute_onlyOperatorReports_onlyWhileRunning() public {
+        address mallory = makeAddr("mallory");
+        _startGame();
+        vm.prank(mallory);
+        vm.expectRevert();
+        game.reportDispute(gameId, "grief");
+
+        vm.prank(operator);
+        game.revealAndFinalize(gameId, _reveals(), new NoxGame.NightReveal[](0), bytes32(0), 1);
+        vm.prank(operator);
+        vm.expectRevert(
+            abi.encodeWithSelector(NoxGame.WrongStatus.selector, NoxGame.Status.Running, NoxGame.Status.Finalized)
+        );
+        game.reportDispute(gameId, "too late");
+    }
+
+    function test_timeout_anyoneFlagsASilentGame() public {
+        _startGame();
+        uint64 deadline = uint64(block.timestamp) + game.revealTimeout();
+        address stranger = makeAddr("stranger");
+
+        vm.warp(deadline);
+        vm.prank(stranger);
+        vm.expectRevert(abi.encodeWithSelector(NoxGame.NotTimedOut.selector, deadline));
+        game.claimRevealTimeout(gameId);
+
+        vm.warp(deadline + 1);
+        uint8 timeout = game.DISPUTE_REVEAL_TIMEOUT();
+        vm.expectEmit(true, false, false, true);
+        emit NoxGame.GameDisputed(gameId, timeout, "no reveal before the deadline");
+        vm.prank(stranger);
+        game.claimRevealTimeout(gameId);
+        assertEq(uint8(_status()), uint8(NoxGame.Status.Disputed));
+    }
+
+    function test_timeout_activityMovesTheDeadline() public {
+        _startGame();
+        uint64 timeoutSecs = game.revealTimeout();
+        vm.warp(block.timestamp + timeoutSecs - 60);
+        vm.prank(players[1]);
+        game.castVote(gameId, 1, players[0]);
+
+        vm.warp(block.timestamp + 120); // past the old deadline, not the new one
+        vm.expectRevert(
+            abi.encodeWithSelector(NoxGame.NotTimedOut.selector, uint64(block.timestamp - 120) + timeoutSecs)
+        );
+        game.claimRevealTimeout(gameId);
+
+        vm.warp(block.timestamp + timeoutSecs);
+        game.claimRevealTimeout(gameId);
+        assertEq(uint8(_status()), uint8(NoxGame.Status.Disputed));
+    }
+
+    function test_timeout_onlyForRunningGames() public {
+        vm.prank(operator);
+        game.createGame(gameId, bytes32(0));
+        vm.warp(block.timestamp + 30 days);
+        vm.expectRevert(
+            abi.encodeWithSelector(NoxGame.WrongStatus.selector, NoxGame.Status.Running, NoxGame.Status.Lobby)
+        );
+        game.claimRevealTimeout(gameId);
+    }
+
+    function test_timeout_adminSetsIt_withAFloor() public {
+        vm.prank(operator);
+        vm.expectRevert();
+        game.setRevealTimeout(1 hours);
+        vm.startPrank(admin);
+        vm.expectRevert(NoxGame.InvalidCode.selector);
+        game.setRevealTimeout(5 minutes);
+        game.setRevealTimeout(1 hours);
+        vm.stopPrank();
+        assertEq(game.revealTimeout(), 1 hours);
     }
 
     // ------------------------------------------------------------ credits
