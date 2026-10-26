@@ -4,7 +4,7 @@ Smart contracts for [Nox](https://github.com/Nox-QIE): provably fair Werewolf on
 
 | Contract | Purpose |
 |---|---|
-| `NoxGame` | Commit-reveal record of a game: create, join (player wallet), commit role Merkle root, commit night actions and cast votes (player wallets), record rounds, then reveal and verify every role and night action at finalize |
+| `NoxGame` | Commit-reveal record of a game: create, join (player wallet), commit role Merkle root, commit night actions and cast votes (player wallets), record rounds, then reveal and verify every role and night action at finalize. A failed or missing reveal ends as `Disputed` (operator report, or anyone after `revealTimeout`); see [ADR-004](docs/adr/ADR-004-disputed-games.md) |
 | `NoxCredits` | Non-transferable ERC-20 status points (0 decimals), minted by `NoxGame` at finalize |
 | `NoxAgentRegistry` | Third-party AI Game Masters: owner, mode, status, persona/endpoint hash, revenue share (default 30%) |
 | `NoxPayments` | Host/Season Pass (QIE or QUSDC; rupiah recorded), Game Night with instant agent share, monthly agent pool, pull withdrawals. See [ADR-003](docs/adr/ADR-003-payments-and-agent-revenue.md) |

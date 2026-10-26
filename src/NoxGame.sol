@@ -11,6 +11,9 @@ import {NoxCredits} from "./NoxCredits.sol";
 ///         their own wallets; at the end the operator reveals every role and night action and this
 ///         contract checks each one against what was committed. Game rules run off-chain in the
 ///         open-source engine; anyone can replay them from the revealed data and the logged events.
+///         A game whose reveal does not match its commitments, or that is never revealed, ends as
+///         Disputed instead of quietly disappearing: the operator reports its own failed reveal, and
+///         anyone can flag a running game that has been silent longer than `revealTimeout`.
 /// @dev Hashing follows @nox/shared crypto-spec v1 (see docs/adr/ADR-001-commit-reveal-hashing.md).
 contract NoxGame is AccessControl {
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
@@ -31,8 +34,13 @@ contract NoxGame is AccessControl {
         Lobby,
         Running,
         Finalized,
-        Cancelled
+        Cancelled,
+        Disputed
     }
+
+    // GameDisputed reasons
+    uint8 public constant DISPUTE_REVEAL_MISMATCH = 1;
+    uint8 public constant DISPUTE_REVEAL_TIMEOUT = 2;
 
     struct Game {
         Status status;
@@ -40,6 +48,9 @@ contract NoxGame is AccessControl {
         uint16 round;
         uint8 winner;
         uint16 nightCommits;
+        /// @dev Last time the game moved (roles committed, a night action, a vote, a round). Packed
+        ///      into the first slot, so keeping it costs little.
+        uint64 lastActivity;
         bytes32 configHash;
         bytes32 rolesRoot;
         bytes32 resultHash;
@@ -63,6 +74,8 @@ contract NoxGame is AccessControl {
     NoxCredits public immutable credits;
     uint256 public participationCredits = 10;
     uint256 public winCredits = 20;
+    /// @notice How long a running game may stay silent before anyone can mark it Disputed.
+    uint64 public revealTimeout = 6 hours;
 
     mapping(bytes32 gameId => Game) public games;
     mapping(bytes32 gameId => address[]) internal _players;
@@ -86,6 +99,8 @@ contract NoxGame is AccessControl {
     );
     event GameFinalized(bytes32 indexed gameId, bytes32 resultHash, uint8 winner);
     event GameCancelled(bytes32 indexed gameId, string reason);
+    event GameDisputed(bytes32 indexed gameId, uint8 reason, string detail);
+    event RevealTimeoutConfigured(uint64 seconds_);
     event CreditsConfigured(uint256 participation, uint256 win);
 
     error WrongStatus(Status expected, Status actual);
@@ -101,6 +116,7 @@ contract NoxGame is AccessControl {
     error BadNightReveal(address player, uint16 round);
     error RevealCountMismatch();
     error InvalidCode();
+    error NotTimedOut(uint64 deadline);
 
     constructor(address admin, address operator, NoxCredits credits_) {
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
@@ -135,6 +151,7 @@ contract NoxGame is AccessControl {
         g.rolesRoot = rolesRoot;
         g.round = 1;
         g.status = Status.Running;
+        g.lastActivity = uint64(block.timestamp);
         emit RolesCommitted(gameId, rolesRoot, g.playerCount);
     }
 
@@ -148,16 +165,18 @@ contract NoxGame is AccessControl {
         if (nightCommitOf[gameId][round][msg.sender] != bytes32(0)) revert AlreadyCommitted();
         nightCommitOf[gameId][round][msg.sender] = actionHash_;
         g.nightCommits++;
+        g.lastActivity = uint64(block.timestamp);
         emit NightActionCommitted(gameId, round, msg.sender, actionHash_);
     }
 
     /// @notice Public day vote, one per player per round, from the player's own wallet.
     function castVote(bytes32 gameId, uint16 round, address target) external {
-        _expectRound(gameId, round);
+        Game storage g = _expectRound(gameId, round);
         _expectPlayer(gameId, msg.sender);
         _expectPlayer(gameId, target);
         if (voteOf[gameId][round][msg.sender] != address(0)) revert AlreadyVoted();
         voteOf[gameId][round][msg.sender] = target;
+        g.lastActivity = uint64(block.timestamp);
         emit VoteCast(gameId, round, msg.sender, target);
     }
 
@@ -166,6 +185,7 @@ contract NoxGame is AccessControl {
         Game storage g = _expectRound(gameId, round);
         roundResultOf[gameId][round] = resultHash_;
         g.round = round + 1;
+        g.lastActivity = uint64(block.timestamp);
         emit RoundRecorded(gameId, round, resultHash_);
     }
 
@@ -231,6 +251,27 @@ contract NoxGame is AccessControl {
         emit GameCancelled(gameId, reason);
     }
 
+    /// @notice The operator reports that its own reveal does not match what it committed (a server bug
+    ///         or tampering). The game ends with no credits, and the record stays public.
+    function reportDispute(bytes32 gameId, string calldata detail) external onlyRole(OPERATOR_ROLE) {
+        _dispute(_expect(gameId, Status.Running), gameId, DISPUTE_REVEAL_MISMATCH, detail);
+    }
+
+    /// @notice Anyone may call this once a running game has been silent longer than `revealTimeout`:
+    ///         the operator can neither hide a game nor sit on its reveal.
+    function claimRevealTimeout(bytes32 gameId) external {
+        Game storage g = _expect(gameId, Status.Running);
+        uint64 deadline = g.lastActivity + revealTimeout;
+        if (block.timestamp <= deadline) revert NotTimedOut(deadline);
+        _dispute(g, gameId, DISPUTE_REVEAL_TIMEOUT, "no reveal before the deadline");
+    }
+
+    function setRevealTimeout(uint64 seconds_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (seconds_ < 10 minutes) revert InvalidCode();
+        revealTimeout = seconds_;
+        emit RevealTimeoutConfigured(seconds_);
+    }
+
     function setCredits(uint256 participation, uint256 win) external onlyRole(DEFAULT_ADMIN_ROLE) {
         participationCredits = participation;
         winCredits = win;
@@ -267,6 +308,11 @@ contract NoxGame is AccessControl {
     function _expectRound(bytes32 gameId, uint16 round) internal view returns (Game storage g) {
         g = _expect(gameId, Status.Running);
         if (round != g.round) revert WrongRound(g.round, round);
+    }
+
+    function _dispute(Game storage g, bytes32 gameId, uint8 reason, string memory detail) internal {
+        g.status = Status.Disputed;
+        emit GameDisputed(gameId, reason, detail);
     }
 
     function _expectPlayer(bytes32 gameId, address account) internal view {
