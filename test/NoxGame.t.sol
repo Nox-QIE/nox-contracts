@@ -327,6 +327,10 @@ contract NoxGameTest is Test {
     /// @dev 5 players at 0xC000..: wolf 0, seer 1, doctor 2, villagers 3-4. Night 1: the wolf picks
     ///      player 3, the seer inspects the wolf, the doctor protects player 3. Day 1: 1-4 vote the wolf.
     function _rewardGame(bytes32 id) internal returns (address[] memory ps) {
+        return _rewardGame(id, 0);
+    }
+
+    function _rewardGame(bytes32 id, uint8 mode) internal returns (address[] memory ps) {
         ps = new address[](5);
         uint8[5] memory rs = [2, 3, 4, 1, 1];
         bytes32[] memory leaves = new bytes32[](5);
@@ -335,7 +339,8 @@ contract NoxGameTest is Test {
             leaves[i] = game.roleLeaf(id, ps[i], rs[i], bytes32(i + 1));
         }
         vm.prank(operator);
-        game.createGame(id, bytes32(0));
+        if (mode == 0) game.createGame(id, bytes32(0));
+        else game.createGameWithMode(id, bytes32(0), mode);
         for (uint256 i; i < 5; ++i) {
             vm.prank(ps[i]);
             game.joinGame(id);
@@ -394,6 +399,34 @@ contract NoxGameTest is Test {
         assertEq(credits.balanceOf(ps[2]), 37); // doctor: 30 + protected the wolf's pick 5 + vote 2
         assertEq(credits.balanceOf(ps[3]), 32);
         assertEq(credits.balanceOf(ps[4]), 32);
+    }
+
+    function test_scamShield_villageWinEarnsTheBonus() public {
+        bytes32 id = keccak256("scam-shield-1");
+        address[] memory ps = _rewardGame(id, game.MODE_SCAM_SHIELD());
+        assertEq(game.modeOf(id), game.MODE_SCAM_SHIELD());
+        assertEq(credits.balanceOf(ps[0]), 10); // the scammer lost: no bonus
+        assertEq(credits.balanceOf(ps[1]), 37 + 5); // seer: same formula as a standard game, plus the bonus
+        assertEq(credits.balanceOf(ps[2]), 37 + 5);
+        assertEq(credits.balanceOf(ps[3]), 32 + 5);
+        assertEq(credits.balanceOf(ps[4]), 32 + 5);
+
+        // The helper reuses the same wallets, so later games are compared by what they add.
+        uint256 before = credits.balanceOf(ps[3]);
+        _rewardGame(keccak256("standard-1")); // a standard game the same day: no bonus
+        uint256 standard = credits.balanceOf(ps[3]) - before;
+
+        vm.prank(operator);
+        vm.expectRevert(NoxGame.InvalidCode.selector);
+        game.createGameWithMode(keccak256("bad-mode"), bytes32(0), 2);
+        vm.expectRevert();
+        game.setScamShieldBonus(0); // not the admin
+        vm.prank(admin);
+        game.setScamShieldBonus(0);
+        before = credits.balanceOf(ps[3]);
+        _rewardGame(keccak256("scam-shield-2"), game.MODE_SCAM_SHIELD());
+        assertEq(credits.balanceOf(ps[3]) - before, standard); // bonus switched off: same as a standard game
+        assertEq(game.modeOf(keccak256("standard-1")), game.MODE_STANDARD());
     }
 
     function test_rewards_streakAcrossDays() public {

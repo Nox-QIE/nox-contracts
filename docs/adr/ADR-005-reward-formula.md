@@ -23,6 +23,7 @@ Nox Credits are non-transferable status points (rank, leaderboard, badges). The 
 - Parameters live in `rewards` (one struct). `setRewards` (admin) applies to future games only, bumps `version` (the caller's value is ignored), and bounds every value (≤ 1,000 each, cap ≤ 30), so a setting can never make a finalize overflow and revert.
 - Each grant emits `RewardGranted(gameId, player, version, base, roleBonus, voteBonus, streakBonus)` next to `CreditsMinted`, so a dashboard can show the breakdown and anyone can recompute it.
 - Disputed or cancelled games mint nothing and do not touch streaks.
+- **Scam Shield bonus (27 Oct 2026, F10-S05).** A game created with `createGameWithMode(gameId, configHash, MODE_SCAM_SHIELD)` has a public mode (`modeOf`, `GameModeSet`). When the village wins it, every village player also earns `scamShieldBonus` (default 5; admin `setScamShieldBonus`, ≤ 1,000, `0` turns it off). The bonus is emitted as its own `ScamShieldBonus(gameId, player, amount)` event, so `RewardGranted` keeps its shape. The operator chooses the mode at creation, as it chooses the rules; the mode is on chain before anyone joins.
 
 ## Consequences
 
