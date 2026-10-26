@@ -3,11 +3,12 @@ pragma solidity ^0.8.28;
 
 import {Script, console} from "forge-std/Script.sol";
 import {NoxAgentRegistry} from "../src/NoxAgentRegistry.sol";
+import {NoxBadges} from "../src/NoxBadges.sol";
 import {NoxCredits} from "../src/NoxCredits.sol";
 import {NoxGame} from "../src/NoxGame.sol";
 import {NoxPayments} from "../src/NoxPayments.sol";
 
-/// @notice Deploys NoxCredits + NoxGame (game mints credits), NoxAgentRegistry and NoxPayments.
+/// @notice Deploys NoxCredits + NoxGame (game mints credits), NoxAgentRegistry, NoxPayments and NoxBadges.
 /// Usage (key from a secure keystore, never on the command line in shared terminals):
 ///   NOX_ADMIN=0x... NOX_OPERATOR=0x... forge script script/Deploy.s.sol \
 ///     --rpc-url qie_testnet --account nox-deployer --broadcast
@@ -18,6 +19,7 @@ contract Deploy is Script {
         NoxGame game;
         NoxAgentRegistry registry;
         NoxPayments payments;
+        NoxBadges badges;
     }
 
     function run() external returns (Deployment memory d) {
@@ -36,12 +38,15 @@ contract Deploy is Script {
         }
         d.registry = new NoxAgentRegistry(admin, operator);
         d.payments = new NoxPayments(admin, operator, d.registry);
+        d.badges = new NoxBadges(admin, operator);
+        if (admin == deployer) d.badges.defineBadge(keccak256("SCAM_SPOTTER"), "Scam Spotter", true);
         vm.stopBroadcast();
 
         console.log("NoxCredits:      ", address(d.credits));
         console.log("NoxGame:         ", address(d.game));
         console.log("NoxAgentRegistry:", address(d.registry));
         console.log("NoxPayments:     ", address(d.payments));
+        console.log("NoxBadges:       ", address(d.badges));
         console.log("admin:     ", admin);
         console.log("operator:  ", operator);
     }

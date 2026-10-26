@@ -8,6 +8,7 @@ Smart contracts for [Nox](https://github.com/Nox-QIE): provably fair Werewolf on
 | `NoxCredits` | Non-transferable ERC-20 status points (0 decimals), minted by `NoxGame` at finalize |
 | `NoxAgentRegistry` | Third-party AI Game Masters: owner, mode, status, persona/endpoint hash, revenue share (default 30%) |
 | `NoxPayments` | Host/Season Pass (QIE or QUSDC; rupiah recorded), Game Night with instant agent share, monthly agent pool, pull withdrawals. See [ADR-003](docs/adr/ADR-003-payments-and-agent-revenue.md) |
+| `NoxBadges` | Non-transferable achievement badges (e.g. Scam Spotter), awarded by the operator per game with the game id in the event. See [ADR-007](docs/adr/ADR-007-badges.md) |
 
 Hashing follows `@nox/shared/crypto-spec` v1; see [ADR-001](docs/adr/ADR-001-commit-reveal-hashing.md). `test/vectors/crypto-spec-v1.json` is copied from [nox-shared](https://github.com/Nox-QIE/nox-shared) and the tests prove both sides hash identically.
 

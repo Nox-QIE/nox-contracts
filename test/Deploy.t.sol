@@ -24,6 +24,8 @@ contract DeployTest is Test {
         assertTrue(d.registry.hasRole(d.registry.OPERATOR_ROLE(), operator));
         assertTrue(d.payments.hasRole(d.payments.DEFAULT_ADMIN_ROLE(), admin));
         assertEq(d.registry.defaultShareBps(), 3_000);
+        assertTrue(d.badges.hasRole(d.badges.DEFAULT_ADMIN_ROLE(), admin));
+        assertTrue(d.badges.hasRole(d.badges.OPERATOR_ROLE(), operator));
         // The deployer keeps no admin power over credits.
         (, address deployer,) = vm.readCallers();
         assertFalse(credits.hasRole(credits.DEFAULT_ADMIN_ROLE(), deployer));
