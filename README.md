@@ -64,7 +64,7 @@ Add `--slow` when broadcasting to QIE: its Cosmos EVM rejects a transaction whos
 
 | Network | Contracts | Block | Commit |
 |---|---|---|---|
-| QIE Testnet (1983) | [`deployments/qie-testnet.json`](deployments/qie-testnet.json): NoxCredits `0x67cA9002…a118`, NoxGame `0x5ecA1C5A…a6e4`, NoxAgentRegistry `0xC7977854…3937`, NoxPayments `0x691304FD…EE18` | 9,375,796 | `8571a64` |
+| QIE Testnet (1983) | [`deployments/qie-testnet.json`](deployments/qie-testnet.json): NoxCredits `0x67cA9002…a118`, NoxGame `0x5ecA1C5A…a6e4`, NoxAgentRegistry `0xC7977854…3937`, NoxPayments `0x42aCDb6F…744a` (replaced at block 9,378,943 / `2aed617` for `buyPassFor`; Host Pass 1 QIE per 30 days) | 9,375,796 | `8571a64` |
 | QIE Testnet (1983), archive | NoxGame `0xa845444E…626e` (before ADR-004/005; the first real game was played here) | 9,366,050 | `5ae1fbd` |
 
 Source verification on the testnet Blockscout (v7.0.2) fails for every Solidity version: its verifier currently lists no compilers (`/api/v2/smart-contracts/verification/config` returns an empty `solidity_compiler_versions`, checked 26 Oct 2026; the last testnet verification succeeded on 20 Oct). The mainnet verifier lists 0.8.28, so mainnet contracts can be verified without changing the compiler. The testnet faucet is at https://www.qie.digital/faucet; mainnet needs real QIE (no faucet).
