@@ -141,6 +141,24 @@ contract NoxAgentsPaymentsTest is Test {
         payments.recordFiatPass(host, HOST_PASS, 1, keccak256("psp receipt 123"));
         assertTrue(payments.hasPass(host, HOST_PASS));
         assertEq(payments.treasuryBalance(NATIVE), 0);
+        assertTrue(payments.receiptUsed(keccak256("psp receipt 123")));
+    }
+
+    function test_fiat_receiptCannotBeReused() public {
+        bytes32 receipt = keccak256("bank transfer 42");
+        vm.startPrank(operator);
+        payments.recordFiatPass(host, HOST_PASS, 1, receipt);
+        uint64 expiry = payments.passExpiry(host, HOST_PASS);
+        // The same receipt again would extend the pass for free: refused, for passes and nights alike.
+        vm.expectRevert(NoxPayments.ReceiptUsed.selector);
+        payments.recordFiatPass(host, HOST_PASS, 1, receipt);
+        vm.expectRevert(NoxPayments.ReceiptUsed.selector);
+        payments.recordFiatGameNight(keccak256("booking-9"), 0, receipt);
+        assertFalse(payments.bookingPaid(keccak256("booking-9")));
+        vm.expectRevert(NoxPayments.InvalidInput.selector);
+        payments.recordFiatPass(host, HOST_PASS, 1, bytes32(0));
+        vm.stopPrank();
+        assertEq(payments.passExpiry(host, HOST_PASS), expiry);
     }
 
     // ------------------------------------------------------------ Game Night
