@@ -17,7 +17,7 @@
     "NoxCredits": "0x67cA9002c4efd3326060178c044bb60496f1a118",
     "NoxGame": "0x5ecA1C5A6d5A75920147eb396F0223873C0cA6e4",
     "NoxAgentRegistry": "0xC79778544bade24E9dd138B0cAcCB660d7e53937",
-    "NoxPayments": "0x691304FD74F9fc06003572Cc2AE9b876Bd05EE18"
+    "NoxPayments": "0x42aCDb6FA34eaAb2C5aea3D6FBe06DF30AE9744a"
   },
   "sourceVerified": false,
   "sourceVerifiedNote": "The testnet Blockscout verifier lists no Solidity compilers (api/v2/smart-contracts/verification/config, checked 2026-10-26); mainnet's lists 0.8.28.",
@@ -33,6 +33,21 @@
         "NoxPayments": "0x8DcD6Ff66d6033933B8E76C8d4b3d06a10e9B505"
       },
       "note": "Before the Disputed status (ADR-004) and the credits formula (ADR-005). Kept on chain as an archive; the first real game (0x684c\u20264057) was played here."
+    }
+  ],
+  "replaced": [
+    {
+      "contract": "NoxPayments",
+      "old": "0x691304FD74F9fc06003572Cc2AE9b876Bd05EE18",
+      "new": "0x42aCDb6FA34eaAb2C5aea3D6FBe06DF30AE9744a",
+      "block": 9378943,
+      "commit": "2aed617",
+      "date": "2026-10-26",
+      "reason": "buyPassFor (pay for another wallet's pass); deployed with script/DeployPayments.s.sol next to the same NoxAgentRegistry",
+      "hostPass": {
+        "priceWei": "1000000000000000000",
+        "periodDays": 30
+      }
     }
   ]
 }
