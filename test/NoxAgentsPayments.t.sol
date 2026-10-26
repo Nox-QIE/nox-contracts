@@ -105,6 +105,28 @@ contract NoxAgentsPaymentsTest is Test {
         assertFalse(payments.hasPass(host, HOST_PASS));
     }
 
+    function test_pass_buyForAnotherWallet() public {
+        address gameWallet = makeAddr("host game wallet");
+        vm.expectEmit(true, true, true, true);
+        emit NoxPayments.PassPaidBy(host, gameWallet, HOST_PASS);
+        vm.prank(host);
+        payments.buyPassFor{value: 2 ether}(gameWallet, HOST_PASS, 2, NATIVE);
+        assertTrue(payments.hasPass(gameWallet, HOST_PASS));
+        assertFalse(payments.hasPass(host, HOST_PASS)); // the payer gets nothing
+        assertEq(payments.passExpiry(gameWallet, HOST_PASS), block.timestamp + 60 days);
+        assertEq(payments.treasuryBalance(NATIVE), 2 ether);
+
+        // Renewals stack, whoever pays; paying for yourself emits no PassPaidBy.
+        vm.prank(gameWallet);
+        vm.deal(gameWallet, 1 ether);
+        payments.buyPassFor{value: 1 ether}(gameWallet, HOST_PASS, 1, NATIVE);
+        assertEq(payments.passExpiry(gameWallet, HOST_PASS), block.timestamp + 90 days);
+
+        vm.prank(host);
+        vm.expectRevert(NoxPayments.InvalidInput.selector);
+        payments.buyPassFor{value: 1 ether}(address(0), HOST_PASS, 1, NATIVE);
+    }
+
     function test_pass_wrongValueOrUnlistedReverts() public {
         vm.prank(host);
         vm.expectRevert(abi.encodeWithSelector(NoxPayments.WrongAmount.selector, 1 ether, 0.5 ether));
