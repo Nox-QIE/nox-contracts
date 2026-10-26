@@ -28,6 +28,8 @@ Networks: testnet 1983 via `https://rpc2testnet.qie.digital/` (`rpc1`/`rpc3` tes
 
 `script/Deploy.s.sol` deploys `NoxCredits` + `NoxGame` + `NoxAgentRegistry` + `NoxPayments`, grants the game the minter role, and hands credit admin to `NOX_ADMIN` (defaults to the deployer). `NOX_OPERATOR` (defaults to `NOX_ADMIN`) is the backend's operator wallet.
 
+`script/DeployGame.s.sol` replaces only `NoxGame` next to an existing `NoxCredits` (`NOX_CREDITS`). When the broadcaster is the credits admin, it also grants the new game the minter role. Credits, registry, payments and badges keep their addresses and history.
+
 ```bash
 cast wallet import nox-deployer --interactive   # once; stores the key encrypted, not in shell history
 NOX_ADMIN=0x... NOX_OPERATOR=0x... forge script script/Deploy.s.sol --rpc-url qie_testnet --account nox-deployer --broadcast
