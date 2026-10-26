@@ -17,7 +17,8 @@
     "NoxCredits": "0x67cA9002c4efd3326060178c044bb60496f1a118",
     "NoxGame": "0x5ecA1C5A6d5A75920147eb396F0223873C0cA6e4",
     "NoxAgentRegistry": "0xC79778544bade24E9dd138B0cAcCB660d7e53937",
-    "NoxPayments": "0x42aCDb6FA34eaAb2C5aea3D6FBe06DF30AE9744a"
+    "NoxPayments": "0x42aCDb6FA34eaAb2C5aea3D6FBe06DF30AE9744a",
+    "NoxBadges": "0x2DA545153c80af89665c213e50EDa16f54593850"
   },
   "sourceVerified": false,
   "sourceVerifiedNote": "The testnet Blockscout verifier lists no Solidity compilers (api/v2/smart-contracts/verification/config, checked 2026-10-26); mainnet's lists 0.8.28.",
@@ -48,6 +49,16 @@
         "priceWei": "1000000000000000000",
         "periodDays": 30
       }
+    }
+  ],
+  "added": [
+    {
+      "contract": "NoxBadges",
+      "address": "0x2DA545153c80af89665c213e50EDa16f54593850",
+      "block": 9379590,
+      "commit": "892a3ce",
+      "date": "2026-10-26",
+      "note": "deployed with script/DeployBadges.s.sol; Scam Spotter = keccak256(\"SCAM_SPOTTER\") defined"
     }
   ]
 }
