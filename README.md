@@ -36,6 +36,30 @@ Then set `NOX_GAME_ADDRESS` in nox-backend.
 
 Add `--slow` when broadcasting to QIE: its Cosmos EVM rejects a transaction whose nonce arrives ahead of the previous one (`invalid nonce; got 4, expected 3: invalid sequence`). Forge retries without it, but `--slow` sends one transaction at a time.
 
+## Mainnet runbook
+
+1. **Wallets.** On mainnet, keep three roles apart:
+   - the **deployer** (pays the deploy, then has no role);
+   - the **admin** (`NOX_ADMIN`): a cold wallet that changes the rewards, the reveal timeout and the roles;
+   - the **operator** (`NOX_OPERATOR`): the bot's hot key, used only to run games and gas drips.
+
+   If the bot's key leaks, an operator-only key cannot change credits or grant roles.
+2. **Fund.** There is no mainnet faucet.
+   - The deploy simulates at 8.17M gas, about 0.0092 QIE at 1.125 gwei; the preflight asks for twice that.
+   - The operator needs a float for games: a 5-player game used about 1.52M gas on testnet (operator steps, players' transactions paid through gas drips, and the drips themselves), about 0.0017 QIE.
+   - Start with at least 0.5 QIE on the operator (the bot alerts below `NOX_TREASURY_ALERT`).
+3. **Preflight** (no key, sends nothing): checks RPCs, gas price, roles, the simulation and the deployer's balance.
+   ```bash
+   DEPLOYER=0x... NOX_ADMIN=0x... NOX_OPERATOR=0x... script/preflight.sh mainnet
+   ```
+4. **Deploy and verify** in one go. The mainnet Blockscout verifier lists solc 0.8.28, and `foundry.toml` has its API under `[etherscan]`.
+   ```bash
+   NOX_ADMIN=0x... NOX_OPERATOR=0x... forge script script/Deploy.s.sol --rpc-url qie_mainnet --account nox-deployer --broadcast --slow --verify --verifier blockscout --verifier-url https://mainnet.qie.digital/api/
+   ```
+5. **Record** the addresses in `deployments/qie-mainnet.json` and the README, then set them in nox-backend's `.env` (`NOX_CHAIN=mainnet`, `NOX_GAME_ADDRESS`, `NOX_AGENT_REGISTRY_ADDRESS`, `NOX_PAYMENTS_ADDRESS`, `NOX_PAYMENTS_FROM_BLOCK`) and in the dashboard build.
+6. **Configure** with the admin wallet: pass prices (`configurePass`), and `allowToken` for QUSDC if passes are sold in it.
+7. **Smoke test**: one `npm run sim:game` (about 0.002 QIE), then `npm run indexer -- --once`. The credits reconciliation must report 0 mismatches.
+
 ## Deployments
 
 | Network | Contracts | Block | Commit |
