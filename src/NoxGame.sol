@@ -32,6 +32,10 @@ contract NoxGame is AccessControl {
     uint8 public constant TEAM_VILLAGE = 1;
     uint8 public constant TEAM_WOLVES = 2;
 
+    // Game modes (F10-S05). Standard games need nothing; a Scam Shield game is created with its mode.
+    uint8 public constant MODE_STANDARD = 0;
+    uint8 public constant MODE_SCAM_SHIELD = 1;
+
     enum Status {
         None,
         Lobby,
@@ -99,6 +103,10 @@ contract NoxGame is AccessControl {
     });
     /// @notice How long a running game may stay silent before anyone can mark it Disputed.
     uint64 public revealTimeout = 6 hours;
+    /// @notice Extra credits for every village player when the village wins a Scam Shield game:
+    ///         the group spotted the scammers (F10-S05). Status points, like all credits.
+    uint16 public scamShieldBonus = 5;
+    mapping(bytes32 gameId => uint8) public modeOf;
 
     mapping(bytes32 gameId => Game) public games;
     mapping(bytes32 gameId => address[]) internal _players;
@@ -125,6 +133,10 @@ contract NoxGame is AccessControl {
     event GameCancelled(bytes32 indexed gameId, string reason);
     event GameDisputed(bytes32 indexed gameId, uint8 reason, string detail);
     event RevealTimeoutConfigured(uint64 seconds_);
+    event GameModeSet(bytes32 indexed gameId, uint8 mode);
+    event ScamShieldBonusConfigured(uint16 bonus);
+    /// @dev Minted next to RewardGranted, so the formula's breakdown keeps its shape.
+    event ScamShieldBonus(bytes32 indexed gameId, address indexed player, uint16 amount);
     event RewardsConfigured(uint16 indexed version, Rewards rewards);
     /// @dev base = participation (+ win); total minted = base + roleBonus + voteBonus + streakBonus.
     event RewardGranted(
@@ -161,6 +173,20 @@ contract NoxGame is AccessControl {
     // ---------------------------------------------------------------- lobby
 
     function createGame(bytes32 gameId, bytes32 configHash) external onlyRole(OPERATOR_ROLE) {
+        _create(gameId, configHash);
+    }
+
+    /// @notice A game in a special mode (Scam Shield); the mode is public from the start.
+    function createGameWithMode(bytes32 gameId, bytes32 configHash, uint8 mode) external onlyRole(OPERATOR_ROLE) {
+        if (mode > MODE_SCAM_SHIELD) revert InvalidCode();
+        _create(gameId, configHash);
+        if (mode != MODE_STANDARD) {
+            modeOf[gameId] = mode;
+            emit GameModeSet(gameId, mode);
+        }
+    }
+
+    function _create(bytes32 gameId, bytes32 configHash) internal {
         if (games[gameId].status != Status.None) revert AlreadyExists();
         games[gameId].status = Status.Lobby;
         games[gameId].configHash = configHash;
@@ -305,6 +331,12 @@ contract NoxGame is AccessControl {
         emit RevealTimeoutConfigured(seconds_);
     }
 
+    function setScamShieldBonus(uint16 bonus) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (bonus > 1000) revert InvalidCode();
+        scamShieldBonus = bonus;
+        emit ScamShieldBonusConfigured(bonus);
+    }
+
     /// @notice New formula for future games; `version` is set here, the caller's value is ignored.
     function setRewards(Rewards calldata r) external onlyRole(DEFAULT_ADMIN_ROLE) {
         // Bounds keep every sum far below uint16 overflow, so a bad setting can never block a finalize.
@@ -355,6 +387,7 @@ contract NoxGame is AccessControl {
         uint16 roleBonus;
         uint16 voteBonus;
         uint16 streakBonus;
+        uint16 modeBonus;
     }
 
     function _grant(
@@ -372,7 +405,13 @@ contract NoxGame is AccessControl {
         x.voteBonus = r.role == ROLE_WEREWOLF ? 0 : _voteBonus(gameId, r.player, lastRound, rw);
         x.streakBonus = _streakBonus(r.player, rw);
         emit RewardGranted(gameId, r.player, rw.version, x.base, x.roleBonus, x.voteBonus, x.streakBonus);
-        uint256 total = uint256(x.base) + x.roleBonus + x.voteBonus + x.streakBonus;
+        // Scam Shield: the village spotted the scammers, so every village player earns the bonus.
+        if (modeOf[gameId] == MODE_SCAM_SHIELD && team == TEAM_VILLAGE && winner == TEAM_VILLAGE && scamShieldBonus > 0)
+        {
+            x.modeBonus = scamShieldBonus;
+            emit ScamShieldBonus(gameId, r.player, x.modeBonus);
+        }
+        uint256 total = uint256(x.base) + x.roleBonus + x.voteBonus + x.streakBonus + x.modeBonus;
         if (total > 0) credits.mint(r.player, total, gameId);
     }
 
