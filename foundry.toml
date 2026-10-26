@@ -17,5 +17,11 @@ remappings = [
 qie_testnet = "https://rpc2testnet.qie.digital/"
 qie_mainnet = "https://rpc1mainnet.qie.digital"
 
+# Blockscout explorers (etherscan-compatible API). Blockscout needs no API key; forge wants a value.
+# Checked 26 Oct 2026: the mainnet verifier lists solc 0.8.28; the testnet one lists no compilers.
+[etherscan]
+qie_mainnet = { key = "blockscout", url = "https://mainnet.qie.digital/api/", chain = 1990 }
+qie_testnet = { key = "blockscout", url = "https://testnet.qie.digital/api/", chain = 1983 }
+
 [fmt]
 line_length = 120
