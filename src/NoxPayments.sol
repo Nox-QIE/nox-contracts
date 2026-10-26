@@ -44,6 +44,8 @@ contract NoxPayments is AccessControl, ReentrancyGuard {
     event PassPurchased(
         address indexed buyer, uint8 indexed passType, uint32 periods, address token, uint256 amount, uint64 expiresAt
     );
+    /// @dev Emitted next to PassPurchased when someone pays for another wallet's pass.
+    event PassPaidBy(address indexed payer, address indexed holder, uint8 indexed passType);
     event FiatPassRecorded(
         address indexed buyer, uint8 indexed passType, uint32 periods, bytes32 receiptHash, uint64 expiresAt
     );
@@ -115,13 +117,25 @@ contract NoxPayments is AccessControl, ReentrancyGuard {
 
     /// @notice Buy `periods` of a pass with native QIE (send exact value) or an allowed ERC-20 (approve first).
     function buyPass(uint8 passType, uint32 periods, address token) external payable nonReentrant {
+        _buyPass(msg.sender, passType, periods, token);
+    }
+
+    /// @notice Buy a pass for another wallet, e.g. a host paying from their own wallet for the game
+    ///         wallet Nox derives for them. The pass belongs to `holder`; the payer gets nothing.
+    function buyPassFor(address holder, uint8 passType, uint32 periods, address token) external payable nonReentrant {
+        if (holder == address(0)) revert InvalidInput();
+        _buyPass(holder, passType, periods, token);
+        if (holder != msg.sender) emit PassPaidBy(msg.sender, holder, passType);
+    }
+
+    function _buyPass(address holder, uint8 passType, uint32 periods, address token) internal {
         uint256 price = priceOf[passType][token];
         if (price == 0 || periods == 0) revert NotForSale();
         uint256 amount = price * periods;
         _collect(token, amount);
         treasuryBalance[token] += amount;
-        uint64 expiresAt = _extend(msg.sender, passType, periods);
-        emit PassPurchased(msg.sender, passType, periods, token, amount, expiresAt);
+        uint64 expiresAt = _extend(holder, passType, periods);
+        emit PassPurchased(holder, passType, periods, token, amount, expiresAt);
     }
 
     /// @notice A pass paid in rupiah through the PSP: no funds move on-chain, the receipt hash is the proof.
