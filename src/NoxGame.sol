@@ -28,12 +28,14 @@ contract NoxGame is AccessControl {
     uint8 internal constant ROLE_DOCTOR = 4;
     uint8 internal constant ROLE_HUNTER = 5;
     uint8 internal constant ROLE_WITCH = 6;
+    uint8 internal constant ROLE_CUPID = 7;
     uint8 internal constant ACTION_KILL = 1;
     uint8 internal constant ACTION_INSPECT = 2;
     uint8 internal constant ACTION_PROTECT = 3;
     uint8 internal constant ACTION_HEAL = 4;
     uint8 internal constant ACTION_POISON = 5;
     uint8 internal constant ACTION_SHOOT = 6;
+    uint8 internal constant ACTION_LINK = 7;
     uint8 public constant TEAM_VILLAGE = 1;
     uint8 public constant TEAM_WOLVES = 2;
 
@@ -272,7 +274,7 @@ contract NoxGame is AccessControl {
         for (uint256 i; i < roles.length; ++i) {
             RoleReveal calldata r = roles[i];
             _expectPlayer(gameId, r.player);
-            if (r.role < ROLE_VILLAGER || r.role > ROLE_WITCH) revert InvalidCode();
+            if (r.role < ROLE_VILLAGER || r.role > ROLE_CUPID) revert InvalidCode();
             // A second reveal for the same player would overwrite; reject duplicates.
             if (revealedRoleOf[gameId][r.player] != 0) revert BadReveal(r.player);
             if (!MerkleProof.verifyCalldata(r.proof, g.rolesRoot, roleLeaf(gameId, r.player, r.role, r.salt))) {
@@ -284,7 +286,7 @@ contract NoxGame is AccessControl {
 
         for (uint256 i; i < nights.length; ++i) {
             NightReveal calldata n = nights[i];
-            if (n.action == 0 || n.action > ACTION_SHOOT) revert InvalidCode();
+            if (n.action == 0 || n.action > ACTION_LINK) revert InvalidCode();
             bytes32 committed = nightCommitOf[gameId][n.round][n.player];
             if (
                 committed == bytes32(0)
