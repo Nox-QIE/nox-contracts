@@ -15,7 +15,7 @@
   "operator": "0x552000070aB67Ae1ad012a5e72B46f8b44Cc1764",
   "contracts": {
     "NoxCredits": "0x67cA9002c4efd3326060178c044bb60496f1a118",
-    "NoxGame": "0x889542f40c88b8A771BAE2746187299b25001F40",
+    "NoxGame": "0x89Bff276A71001155D77537958c0B18eA8cFF7b9",
     "NoxAgentRegistry": "0xC79778544bade24E9dd138B0cAcCB660d7e53937",
     "NoxPayments": "0x67C052aB1382e810d13eF83a6288511F0518a16c",
     "NoxBadges": "0x2DA545153c80af89665c213e50EDa16f54593850"
@@ -81,6 +81,15 @@
       "commit": "b9c821c",
       "date": "2026-10-27",
       "reason": "hunter and witch role and action codes at reveal (nox-contracts#20); deployed with script/DeployGame.s.sol next to the same NoxCredits, which granted the new game MINTER_ROLE (tx 0xbe90c443898a3ffe312e459d34c1104705ff84eb8b1cc76d6fd09818119d1017). The old game keeps its role; its finished games stay where they are."
+    },
+    {
+      "contract": "NoxGame",
+      "old": "0x889542f40c88b8A771BAE2746187299b25001F40",
+      "new": "0x89Bff276A71001155D77537958c0B18eA8cFF7b9",
+      "block": 9399342,
+      "commit": "d03280e",
+      "date": "2026-10-27",
+      "reason": "cupid role and link action codes at reveal (nox-contracts#22); deployed with script/DeployGame.s.sol next to the same NoxCredits, which granted the new game MINTER_ROLE (tx 0x193e4c22eee9c694e4b4d2be20884485a11871c521b6c0cc109bd1b1518172d2). The old game keeps its role; its finished games stay where they are."
     }
   ],
   "added": [
