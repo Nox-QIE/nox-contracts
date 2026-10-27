@@ -453,10 +453,45 @@ contract NoxGameTest is Test {
         assertEq(credits.balanceOf(ps[5]), 30);
     }
 
+    /// @dev Cupid (role 7) links on night 1 (action 7): accepted at reveal, earns no role bonus.
+    function test_reveal_acceptsCupidLink() public {
+        bytes32 id = keccak256("cupid-1");
+        address[] memory ps = new address[](5);
+        uint8[5] memory rs = [2, 3, 4, 7, 1];
+        bytes32[] memory leaves = new bytes32[](5);
+        for (uint256 i; i < 5; ++i) {
+            ps[i] = address(uint160(0xE000 + i));
+            leaves[i] = game.roleLeaf(id, ps[i], rs[i], bytes32(i + 1));
+        }
+        vm.prank(operator);
+        game.createGame(id, bytes32(0));
+        for (uint256 i; i < 5; ++i) {
+            vm.prank(ps[i]);
+            game.joinGame(id);
+        }
+        vm.prank(operator);
+        game.commitRoles(id, _root(leaves));
+        NoxGame.NightReveal[] memory nights = new NoxGame.NightReveal[](1);
+        nights[0] = NoxGame.NightReveal(1, ps[3], 7, ps[4], bytes32("l"));
+        bytes32 h = game.actionHash(id, 1, ps[3], 7, ps[4], bytes32("l"));
+        vm.prank(ps[3]);
+        game.commitNightAction(id, 1, h);
+        vm.prank(operator);
+        game.recordRound(id, 1, bytes32(0));
+        NoxGame.RoleReveal[] memory reveals = new NoxGame.RoleReveal[](5);
+        for (uint256 i; i < 5; ++i) {
+            reveals[i] = NoxGame.RoleReveal(ps[i], rs[i], bytes32(i + 1), _proof(leaves, i));
+        }
+        vm.prank(operator);
+        game.revealAndFinalize(id, reveals, nights, bytes32(0), 1);
+        assertEq(game.revealedRoleOf(id, ps[3]), 7);
+        assertEq(credits.balanceOf(ps[3]), 30); // village win, no role bonus for a link
+    }
+
     function test_reveal_rejectsUnknownCodes() public {
         _startGame();
         NoxGame.RoleReveal[] memory r = _reveals();
-        r[0].role = 7;
+        r[0].role = 8;
         vm.prank(operator);
         vm.expectRevert(NoxGame.InvalidCode.selector);
         game.revealAndFinalize(gameId, r, new NoxGame.NightReveal[](0), bytes32(0), 1);
@@ -464,7 +499,7 @@ contract NoxGameTest is Test {
         vm.prank(players[0]);
         game.commitNightAction(gameId, 1, keccak256("x"));
         NoxGame.NightReveal[] memory nights = new NoxGame.NightReveal[](1);
-        nights[0] = NoxGame.NightReveal(1, players[0], 7, players[3], bytes32(0));
+        nights[0] = NoxGame.NightReveal(1, players[0], 8, players[3], bytes32(0));
         vm.prank(operator);
         vm.expectRevert(NoxGame.InvalidCode.selector);
         game.revealAndFinalize(gameId, _reveals(), nights, bytes32(0), 1);
