@@ -15,7 +15,7 @@
   "operator": "0x552000070aB67Ae1ad012a5e72B46f8b44Cc1764",
   "contracts": {
     "NoxCredits": "0x67cA9002c4efd3326060178c044bb60496f1a118",
-    "NoxGame": "0x916C51ea42471188534f88893969ccA69C2e5825",
+    "NoxGame": "0x889542f40c88b8A771BAE2746187299b25001F40",
     "NoxAgentRegistry": "0xC79778544bade24E9dd138B0cAcCB660d7e53937",
     "NoxPayments": "0x67C052aB1382e810d13eF83a6288511F0518a16c",
     "NoxBadges": "0x2DA545153c80af89665c213e50EDa16f54593850"
@@ -33,7 +33,7 @@
         "NoxAgentRegistry": "0x27Add0D333c09EF12c9d07F19718250ae112357e",
         "NoxPayments": "0x8DcD6Ff66d6033933B8E76C8d4b3d06a10e9B505"
       },
-      "note": "Before the Disputed status (ADR-004) and the credits formula (ADR-005). Kept on chain as an archive; the first real game (0x684c…4057) was played here."
+      "note": "Before the Disputed status (ADR-004) and the credits formula (ADR-005). Kept on chain as an archive; the first real game (0x684c\u20264057) was played here."
     }
   ],
   "replaced": [
@@ -72,6 +72,15 @@
         "priceWei": "1000000000000000000",
         "periodDays": 30
       }
+    },
+    {
+      "contract": "NoxGame",
+      "old": "0x916C51ea42471188534f88893969ccA69C2e5825",
+      "new": "0x889542f40c88b8A771BAE2746187299b25001F40",
+      "block": 9397612,
+      "commit": "b9c821c",
+      "date": "2026-10-27",
+      "reason": "hunter and witch role and action codes at reveal (nox-contracts#20); deployed with script/DeployGame.s.sol next to the same NoxCredits, which granted the new game MINTER_ROLE (tx 0xbe90c443898a3ffe312e459d34c1104705ff84eb8b1cc76d6fd09818119d1017). The old game keeps its role; its finished games stay where they are."
     }
   ],
   "added": [
