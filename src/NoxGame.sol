@@ -26,9 +26,14 @@ contract NoxGame is AccessControl {
     uint8 internal constant ROLE_WEREWOLF = 2;
     uint8 internal constant ROLE_SEER = 3;
     uint8 internal constant ROLE_DOCTOR = 4;
+    uint8 internal constant ROLE_HUNTER = 5;
+    uint8 internal constant ROLE_WITCH = 6;
     uint8 internal constant ACTION_KILL = 1;
     uint8 internal constant ACTION_INSPECT = 2;
     uint8 internal constant ACTION_PROTECT = 3;
+    uint8 internal constant ACTION_HEAL = 4;
+    uint8 internal constant ACTION_POISON = 5;
+    uint8 internal constant ACTION_SHOOT = 6;
     uint8 public constant TEAM_VILLAGE = 1;
     uint8 public constant TEAM_WOLVES = 2;
 
@@ -267,7 +272,7 @@ contract NoxGame is AccessControl {
         for (uint256 i; i < roles.length; ++i) {
             RoleReveal calldata r = roles[i];
             _expectPlayer(gameId, r.player);
-            if (r.role < ROLE_VILLAGER || r.role > ROLE_DOCTOR) revert InvalidCode();
+            if (r.role < ROLE_VILLAGER || r.role > ROLE_WITCH) revert InvalidCode();
             // A second reveal for the same player would overwrite; reject duplicates.
             if (revealedRoleOf[gameId][r.player] != 0) revert BadReveal(r.player);
             if (!MerkleProof.verifyCalldata(r.proof, g.rolesRoot, roleLeaf(gameId, r.player, r.role, r.salt))) {
@@ -279,7 +284,7 @@ contract NoxGame is AccessControl {
 
         for (uint256 i; i < nights.length; ++i) {
             NightReveal calldata n = nights[i];
-            if (n.action == 0 || n.action > ACTION_PROTECT) revert InvalidCode();
+            if (n.action == 0 || n.action > ACTION_SHOOT) revert InvalidCode();
             bytes32 committed = nightCommitOf[gameId][n.round][n.player];
             if (
                 committed == bytes32(0)
@@ -416,22 +421,31 @@ contract NoxGame is AccessControl {
     }
 
     /// @dev Seer: inspections that found a werewolf. Doctor: protections of a player a werewolf
-    ///      chose the same night (counted even when several wolves split their choice).
+    ///      chose the same night (counted even when several wolves split their choice). The extended
+    ///      roles reuse the same two amounts: a witch's heal of the wolves' pick earns `doctorSave`; her
+    ///      poison on a werewolf, or the hunter's shot at one, earns `seerHit`.
     function _roleBonus(bytes32 gameId, address player, uint8 role, NightReveal[] calldata nights, Rewards memory rw)
         internal
         view
         returns (uint16 bonus)
     {
-        if (role != ROLE_SEER && role != ROLE_DOCTOR) return 0;
+        if (role != ROLE_SEER && role != ROLE_DOCTOR && role != ROLE_WITCH && role != ROLE_HUNTER) return 0;
         for (uint256 i; i < nights.length; ++i) {
             NightReveal calldata n = nights[i];
             if (n.player != player) continue;
-            if (role == ROLE_SEER && n.action == ACTION_INSPECT && revealedRoleOf[gameId][n.target] == ROLE_WEREWOLF) {
+            bool hitWolf = revealedRoleOf[gameId][n.target] == ROLE_WEREWOLF;
+            if (role == ROLE_SEER && n.action == ACTION_INSPECT && hitWolf) {
                 bonus += rw.seerHit;
             } else if (
-                role == ROLE_DOCTOR && n.action == ACTION_PROTECT && _wolfChose(gameId, nights, n.round, n.target)
+                (role == ROLE_DOCTOR && n.action == ACTION_PROTECT || role == ROLE_WITCH && n.action == ACTION_HEAL)
+                    && _wolfChose(gameId, nights, n.round, n.target)
             ) {
                 bonus += rw.doctorSave;
+            } else if (
+                (role == ROLE_WITCH && n.action == ACTION_POISON || role == ROLE_HUNTER && n.action == ACTION_SHOOT)
+                    && hitWolf
+            ) {
+                bonus += rw.seerHit;
             }
         }
     }

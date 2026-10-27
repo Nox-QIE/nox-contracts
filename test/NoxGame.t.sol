@@ -401,6 +401,75 @@ contract NoxGameTest is Test {
         assertEq(credits.balanceOf(ps[4]), 32);
     }
 
+    /// @dev 6 players at 0xD000..: wolf 0, seer 1, doctor 2, hunter 3, witch 4, villager 5. Night 1: the
+    ///      wolf picks 5, the witch heals 5, the hunter (exiled on day 1) shoots the wolf. Night 2: the
+    ///      witch poisons the wolf too (the contract only checks commitments; the rules live in the engine).
+    function test_rewards_hunterAndWitch() public {
+        bytes32 id = keccak256("extended-1");
+        address[] memory ps = new address[](6);
+        uint8[6] memory rs = [2, 3, 4, 5, 6, 1];
+        bytes32[] memory leaves = new bytes32[](6);
+        for (uint256 i; i < 6; ++i) {
+            ps[i] = address(uint160(0xD000 + i));
+            leaves[i] = game.roleLeaf(id, ps[i], rs[i], bytes32(i + 1));
+        }
+        vm.prank(operator);
+        game.createGame(id, bytes32(0));
+        for (uint256 i; i < 6; ++i) {
+            vm.prank(ps[i]);
+            game.joinGame(id);
+        }
+        vm.prank(operator);
+        game.commitRoles(id, _root(leaves));
+
+        NoxGame.NightReveal[] memory nights = new NoxGame.NightReveal[](4);
+        nights[0] = NoxGame.NightReveal(1, ps[0], 1, ps[5], bytes32("k")); // kill
+        nights[1] = NoxGame.NightReveal(1, ps[4], 4, ps[5], bytes32("h")); // heal
+        nights[2] = NoxGame.NightReveal(1, ps[3], 6, ps[0], bytes32("s")); // shoot
+        nights[3] = NoxGame.NightReveal(2, ps[4], 5, ps[0], bytes32("p")); // poison
+        for (uint256 i; i < 4; ++i) {
+            NoxGame.NightReveal memory n = nights[i];
+            if (i == 3) {
+                vm.prank(operator);
+                game.recordRound(id, 1, bytes32(0));
+            }
+            bytes32 h = game.actionHash(id, n.round, n.player, n.action, n.target, n.nonce);
+            vm.prank(n.player);
+            game.commitNightAction(id, n.round, h);
+        }
+        vm.prank(operator);
+        game.recordRound(id, 2, bytes32(0));
+
+        NoxGame.RoleReveal[] memory reveals = new NoxGame.RoleReveal[](6);
+        for (uint256 i; i < 6; ++i) {
+            reveals[i] = NoxGame.RoleReveal(ps[i], rs[i], bytes32(i + 1), _proof(leaves, i));
+        }
+        vm.prank(operator);
+        game.revealAndFinalize(id, reveals, nights, bytes32(0), 1);
+        assertEq(game.revealedRoleOf(id, ps[3]), 5);
+        assertEq(game.revealedRoleOf(id, ps[4]), 6);
+        assertEq(credits.balanceOf(ps[3]), 35); // hunter: 30 + shot the wolf 5
+        assertEq(credits.balanceOf(ps[4]), 40); // witch: 30 + healed the wolf's pick 5 + poisoned the wolf 5
+        assertEq(credits.balanceOf(ps[5]), 30);
+    }
+
+    function test_reveal_rejectsUnknownCodes() public {
+        _startGame();
+        NoxGame.RoleReveal[] memory r = _reveals();
+        r[0].role = 7;
+        vm.prank(operator);
+        vm.expectRevert(NoxGame.InvalidCode.selector);
+        game.revealAndFinalize(gameId, r, new NoxGame.NightReveal[](0), bytes32(0), 1);
+
+        vm.prank(players[0]);
+        game.commitNightAction(gameId, 1, keccak256("x"));
+        NoxGame.NightReveal[] memory nights = new NoxGame.NightReveal[](1);
+        nights[0] = NoxGame.NightReveal(1, players[0], 7, players[3], bytes32(0));
+        vm.prank(operator);
+        vm.expectRevert(NoxGame.InvalidCode.selector);
+        game.revealAndFinalize(gameId, _reveals(), nights, bytes32(0), 1);
+    }
+
     function test_scamShield_villageWinEarnsTheBonus() public {
         bytes32 id = keccak256("scam-shield-1");
         address[] memory ps = _rewardGame(id, game.MODE_SCAM_SHIELD());

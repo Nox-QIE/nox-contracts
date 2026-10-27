@@ -15,8 +15,8 @@ Nox Credits are non-transferable status points (rank, leaderboard, badges). The 
 |---|---|---|
 | Participation | 10 | Every player of a finalized game |
 | Win | 20 | Every player on the winning team |
-| Seer hit | 5 | Per revealed inspection whose target's revealed role is werewolf |
-| Doctor save | 5 | Per revealed protection of a player a werewolf chose (revealed kill) the same night. Counted even when several wolves split their choice: the engine's tie-break uses seat order, which the chain cannot see, so the rule is "blocked a wolf's choice" |
+| Seer hit | 5 | Per revealed inspection whose target's revealed role is werewolf. Extended roles: also per witch poison or hunter shot (actions 5, 6) whose target is a werewolf |
+| Doctor save | 5 | Per revealed protection of a player a werewolf chose (revealed kill) the same night. Counted even when several wolves split their choice: the engine's tie-break uses seat order, which the chain cannot see, so the rule is "blocked a wolf's choice". Extended roles: a witch heal (action 4) of a wolf's choice counts the same |
 | Accurate vote | 2 | Per day vote (`voteOf`) a **village** player cast for a revealed werewolf. Wolves get no vote bonus: voting out a fellow wolf is strategy, not a find |
 | Streak | 2 per step, max 5 steps | Consecutive UTC days with a finalized game (`streakOf`). Several games on one day count once; the first day earns nothing; a missed day starts over |
 
